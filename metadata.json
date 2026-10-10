@@ -1,0 +1,6 @@
+{
+  "name": "KINETIC JEE - Precision Tracking & Performance Workstation",
+  "description": "Ultra-professional JEE practice tracker, real-time analytics, 100-Q Fire Calendar, interactive question bank, custom reports, and secure admin workstation.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
