@@ -7,12 +7,14 @@ import {
 } from 'lucide-react';
 import { DayRecord, SubjectKey } from '@/lib/types';
 import { SUBJECT_CONFIG } from '@/lib/syllabus-data';
+import { ExpStats } from '@/lib/exp-system';
 
 interface CustomReportGeneratorProps {
   records: Record<string, DayRecord>;
+  expStats?: ExpStats;
 }
 
-export default function CustomReportGenerator({ records }: CustomReportGeneratorProps) {
+export default function CustomReportGenerator({ records, expStats }: CustomReportGeneratorProps) {
   const [rangeMode, setRangeMode] = useState<'7d' | '14d' | '30d' | 'all'>('7d');
   const [copied, setCopied] = useState(false);
 
@@ -279,6 +281,39 @@ Generated via KINETIC JEE Precision Workstation`;
             </span>
           </div>
         </div>
+
+        {/* EXP, Level & Academic Credit Score Dossier Record */}
+        {expStats && (
+          <div className="p-4 sm:p-5 rounded-xl bg-[#121624] border border-[#20273b] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div 
+                className="w-10 h-10 rounded-xl flex items-center justify-center font-bold text-base"
+                style={{ backgroundColor: expStats.currentLevel.bgGlow, color: expStats.currentLevel.color, border: `1px solid ${expStats.currentLevel.color}40` }}
+              >
+                ★
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="font-bold text-sm text-white">
+                    Level {expStats.currentLevel.level}: {expStats.currentLevel.title}
+                  </span>
+                  <span className="font-mono-code text-xs text-amber-400 font-bold">
+                    ({expStats.totalExp.toLocaleString()} Cumulative EXP)
+                  </span>
+                </div>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Academic Credit Rating: <b style={{ color: expStats.creditRatingColor }}>{expStats.creditScore}</b> · {expStats.creditTier}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3 self-start sm:self-auto">
+              <span className="text-xs px-3 py-1.5 rounded-lg bg-[#0d1017] border border-[#20273b] text-slate-300 font-semibold font-mono-code">
+                🎖️ {expStats.unlockedBadges.length} Badges Unlocked
+              </span>
+            </div>
+          </div>
+        )}
 
         {/* Subject Allocation & Tier Matrix */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5 pt-2">

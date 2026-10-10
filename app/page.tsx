@@ -9,6 +9,7 @@ import AnalyticsVisualizer from '@/components/AnalyticsVisualizer';
 import CustomReportGenerator from '@/components/CustomReportGenerator';
 import AdminPanelModal from '@/components/AdminPanelModal';
 import AiMentorModal from '@/components/AiMentorModal';
+import ExpBadgesModal from '@/components/ExpBadgesModal';
 import WorkstationSkeleton from '@/components/WorkstationSkeleton';
 import { 
   DayRecord, SubjectKey, QuestionLevel, QuestionBankItem, 
@@ -18,6 +19,7 @@ import {
   getSeedPracticeDatabase, INITIAL_QUESTIONS, INITIAL_STUDENTS, 
   INITIAL_ACTIVITY_LOGS, INITIAL_ANNOUNCEMENTS 
 } from '@/lib/syllabus-data';
+import { calculateExpStats } from '@/lib/exp-system';
 import confetti from 'canvas-confetti';
 
 const emptySubscribe = () => () => {};
@@ -84,6 +86,7 @@ export default function HomePage() {
   const [isSaved, setIsSaved] = useState<boolean>(true);
   const [isAdminOpen, setIsAdminOpen] = useState<boolean>(false);
   const [isAiOpen, setIsAiOpen] = useState<boolean>(false);
+  const [isExpModalOpen, setIsExpModalOpen] = useState<boolean>(false);
   const [targetQuestionForAi, setTargetQuestionForAi] = useState<QuestionBankItem | null>(null);
 
   // Voice Logging State
@@ -418,6 +421,9 @@ export default function HomePage() {
       ((rec.mat?.l1 || 0) + (rec.mat?.l2 || 0) + (rec.mat?.l3 || 0));
   }, 0);
 
+  const currentStreak = calculateStreak();
+  const expStats = calculateExpStats(records, questions, currentStreak);
+
   const personalStudentsList: StudentProfile[] = [
     {
       id: 'stu-aditya',
@@ -426,7 +432,7 @@ export default function HomePage() {
       targetYear: '2026',
       targetRankGoal: 'AIR < 500 (IIT Bombay CSE)',
       totalQuestions: totalQuestionsAllTime,
-      streakDays: calculateStreak(),
+      streakDays: currentStreak,
       accuracyRate: 100,
       activeNow: true,
       lastActive: 'Active Now',
@@ -447,12 +453,14 @@ export default function HomePage() {
         setActiveTab={setActiveTab}
         onOpenAdmin={() => setIsAdminOpen(true)}
         onOpenAi={() => { setTargetQuestionForAi(null); setIsAiOpen(true); }}
+        onOpenExpBadges={() => setIsExpModalOpen(true)}
+        expStats={expStats}
         onToggleVoice={handleToggleVoice}
         isVoiceActive={isVoiceActive}
         todaySolved={todaySolved}
         isSaved={isSaved}
         onSave={handleSave}
-        currentStreak={calculateStreak()}
+        currentStreak={currentStreak}
       />
 
       {/* ANNOUNCEMENT TICKER IF AVAILABLE */}
@@ -485,6 +493,8 @@ export default function HomePage() {
           <Workstation
             currentDateKey={currentDateKey}
             records={records}
+            expStats={expStats}
+            onOpenExpBadges={() => setIsExpModalOpen(true)}
             onUpdateSubject={handleUpdateSubject}
             onUpdateReflection={handleUpdateReflection}
             onSelectDate={k => setCurrentDateKey(k)}
@@ -566,10 +576,17 @@ export default function HomePage() {
         targetQuestion={targetQuestionForAi}
         studentContext={{
           todaySolved,
-          currentStreak: calculateStreak(),
+          currentStreak,
           targetExam: 'JEE Advanced 2026',
           targetBranch: 'IIT Bombay Computer Science'
         }}
+      />
+
+      {/* EXP & BADGES CITADEL MODAL */}
+      <ExpBadgesModal
+        isOpen={isExpModalOpen}
+        onClose={() => setIsExpModalOpen(false)}
+        expStats={expStats}
       />
 
     </div>

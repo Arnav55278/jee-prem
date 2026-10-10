@@ -1,13 +1,16 @@
 'use client';
 
 import React from 'react';
-import { Flame, Shield, Sparkles, Mic, CheckCircle2, AlertCircle, Menu, X, BarChart3, Calendar, BookOpen, FileText, Cpu } from 'lucide-react';
+import { Flame, Shield, Sparkles, Mic, CheckCircle2, AlertCircle, Menu, X, BarChart3, Calendar, BookOpen, FileText, Cpu, Award } from 'lucide-react';
+import { ExpStats } from '@/lib/exp-system';
 
 interface NavbarProps {
   activeTab: 'workstation' | 'fire_calendar' | 'question_bank' | 'analytics' | 'reports';
   setActiveTab: (tab: 'workstation' | 'fire_calendar' | 'question_bank' | 'analytics' | 'reports') => void;
   onOpenAdmin: () => void;
   onOpenAi: () => void;
+  onOpenExpBadges: () => void;
+  expStats: ExpStats;
   onToggleVoice: () => void;
   isVoiceActive: boolean;
   todaySolved: number;
@@ -21,6 +24,8 @@ export default function Navbar({
   setActiveTab,
   onOpenAdmin,
   onOpenAi,
+  onOpenExpBadges,
+  expStats,
   onToggleVoice,
   isVoiceActive,
   todaySolved,
@@ -123,8 +128,31 @@ export default function Navbar({
         </nav>
 
         {/* Action Widgets on Right */}
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-2 sm:gap-2.5">
           
+          {/* EXP & Level & Credit Score Citadel Badge (Clickable) */}
+          <button
+            onClick={onOpenExpBadges}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border transition-all text-xs font-semibold group cursor-pointer shadow-sm"
+            style={{
+              backgroundColor: expStats.currentLevel.bgGlow,
+              borderColor: `${expStats.currentLevel.color}50`,
+              color: expStats.currentLevel.color
+            }}
+            title="Click to view EXP Progression, Level Perks & Badges Citadel"
+          >
+            <Award className="w-3.5 h-3.5 group-hover:rotate-12 transition-transform" />
+            <span className="font-mono-code font-bold">Lv.{expStats.currentLevel.level}</span>
+            <span className="hidden xl:inline text-[11px] text-slate-300">· {expStats.totalExp.toLocaleString()} XP</span>
+            <span 
+              className="hidden 2xl:inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-mono-code font-bold bg-black/40" 
+              style={{ color: expStats.creditRatingColor }}
+              title={`Academic Preparation Credit Score: ${expStats.creditScore}`}
+            >
+              Credit {expStats.creditScore}
+            </span>
+          </button>
+
           {/* Today's Target Indicator */}
           <div 
             onClick={() => setActiveTab('fire_calendar')}
@@ -253,6 +281,16 @@ export default function Navbar({
           >
             <FileText className="w-4 h-4" />
             <span>Custom Reports & Exports</span>
+          </button>
+          <button
+            onClick={() => { onOpenExpBadges(); setMobileMenuOpen(false); }}
+            className="flex items-center justify-between px-3 py-2.5 rounded-lg text-xs font-bold bg-[#141b2c] text-amber-300 border border-amber-500/30"
+          >
+            <div className="flex items-center gap-2">
+              <Award className="w-4 h-4 text-amber-400" />
+              <span>Lv.{expStats.currentLevel.level} {expStats.currentLevel.title} · Badges Citadel</span>
+            </div>
+            <span className="font-mono-code text-[11px] text-white">{expStats.totalExp.toLocaleString()} XP</span>
           </button>
           <div className="pt-2 border-t border-[#1f2638] flex items-center justify-between">
             <span className="text-xs text-slate-400">Current Streak: <b className="text-orange-400">{currentStreak} Days 🔥</b></span>

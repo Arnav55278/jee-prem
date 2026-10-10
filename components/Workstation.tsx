@@ -8,11 +8,14 @@ import {
 } from 'lucide-react';
 import { SubjectKey, QuestionLevel, DayRecord, SubjectDayData } from '@/lib/types';
 import { CH, SUBJECT_CONFIG } from '@/lib/syllabus-data';
+import { ExpStats } from '@/lib/exp-system';
 import confetti from 'canvas-confetti';
 
 interface WorkstationProps {
   currentDateKey: string;
   records: Record<string, DayRecord>;
+  expStats?: ExpStats;
+  onOpenExpBadges?: () => void;
   onUpdateSubject: (sub: SubjectKey, data: Partial<SubjectDayData>) => void;
   onUpdateReflection: (text: string) => void;
   onSelectDate: (dateKey: string) => void;
@@ -24,6 +27,8 @@ interface WorkstationProps {
 export default function Workstation({
   currentDateKey,
   records,
+  expStats,
+  onOpenExpBadges,
   onUpdateSubject,
   onUpdateReflection,
   onSelectDate,
@@ -400,6 +405,91 @@ export default function Workstation({
           </div>
         </div>
       </div>
+
+      {/* EXP & ACADEMIC CREDIT CITADEL CARD */}
+      {expStats && (
+        <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-[#121728] via-[#101422] to-[#171626] border border-indigo-500/30 shadow-lg">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
+            <div className="flex items-center gap-2.5">
+              <div 
+                className="w-8 h-8 rounded-lg flex items-center justify-center font-bold text-sm shadow-sm"
+                style={{ backgroundColor: expStats.currentLevel.bgGlow, border: `1px solid ${expStats.currentLevel.color}`, color: expStats.currentLevel.color }}
+              >
+                <Award className="w-4 h-4" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="font-bold text-white text-sm">
+                    Level {expStats.currentLevel.level}: {expStats.currentLevel.title}
+                  </span>
+                  <span 
+                    className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider font-mono-code"
+                    style={{ backgroundColor: expStats.currentLevel.bgGlow, color: expStats.currentLevel.color }}
+                  >
+                    {expStats.totalExp.toLocaleString()} EXP
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-400">
+                  {expStats.currentLevel.perk}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 self-start sm:self-auto">
+              <div 
+                className="px-3 py-1.5 rounded-xl border flex items-center gap-1.5 text-xs font-semibold"
+                style={{ backgroundColor: `${expStats.creditRatingColor}15`, borderColor: `${expStats.creditRatingColor}40` }}
+                title="Academic Credit Score (300 - 900)"
+              >
+                <span className="text-[10px] text-slate-400 uppercase font-mono-code">Credit Score:</span>
+                <span className="font-mono-code font-bold text-sm" style={{ color: expStats.creditRatingColor }}>
+                  {expStats.creditScore}
+                </span>
+                <span className="text-[10px] text-slate-400 hidden lg:inline">({expStats.creditTier})</span>
+              </div>
+
+              {onOpenExpBadges && (
+                <button
+                  onClick={onOpenExpBadges}
+                  className="px-3 py-1.5 rounded-xl bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 border border-indigo-500/30 text-xs font-semibold flex items-center gap-1 transition-colors"
+                >
+                  <Award className="w-3.5 h-3.5 text-amber-400" />
+                  <span>Badges ({expStats.unlockedBadges.length}/{expStats.unlockedBadges.length + expStats.lockedBadges.length}) ↗</span>
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Level Progress Bar & Next Level Target */}
+          <div className="space-y-1.5">
+            <div className="flex justify-between text-[11px] font-semibold text-slate-400">
+              <span>Level Progress ({expStats.levelProgress}%)</span>
+              <span className="font-mono-code text-indigo-300">
+                {expStats.nextLevel ? `${expStats.expToNextLevel.toLocaleString()} EXP to Level ${expStats.nextLevel.level} (${expStats.nextLevel.title})` : 'Apex Level Reached!'}
+              </span>
+            </div>
+            <div className="w-full bg-[#0a0d14] h-2.5 rounded-full border border-[#1f2638] overflow-hidden">
+              <div 
+                className="h-full rounded-full transition-all duration-500 bg-gradient-to-r from-indigo-500 via-sky-400 to-amber-400"
+                style={{ width: `${expStats.levelProgress}%` }}
+              />
+            </div>
+          </div>
+
+          {/* Real-time Multipliers Hint */}
+          <div className="mt-3 pt-2.5 border-t border-white/5 flex flex-wrap items-center justify-between gap-2 text-[10.5px] text-slate-400">
+            <div className="flex flex-wrap items-center gap-3">
+              <span>⚡ <b>L1:</b> +10 XP</span>
+              <span>⚡ <b>L2:</b> +25 XP</span>
+              <span>⚡ <b>L3 Adv:</b> +50 XP</span>
+              <span>⏱ <b>Focus Time:</b> +2 XP/min</span>
+              <span>🔥 <b>Centurion 100-Q:</b> +300 Blaze XP</span>
+              <span>🎯 <b>Clean Diagnostic:</b> +40 XP</span>
+            </div>
+            <span className="text-amber-400/90 font-semibold">Live Real-time XP Calculation</span>
+          </div>
+        </div>
+      )}
 
       {/* TARGET PROGRESS (100 Qs CENTURION METER) */}
       <div className={`p-5 rounded-2xl border transition-all ${
