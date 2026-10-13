@@ -10,10 +10,12 @@ import CustomReportGenerator from '@/components/CustomReportGenerator';
 import AdminPanelModal from '@/components/AdminPanelModal';
 import AiMentorModal from '@/components/AiMentorModal';
 import ExpBadgesModal from '@/components/ExpBadgesModal';
+import AuthModal from '@/components/AuthModal';
 import WorkstationSkeleton from '@/components/WorkstationSkeleton';
 import { 
   DayRecord, SubjectKey, QuestionLevel, QuestionBankItem, 
-  StudentProfile, StudentActivityLog, AnnouncementItem, SubjectDayData 
+  StudentProfile, StudentActivityLog, AnnouncementItem, SubjectDayData,
+  AuthUserSession, UserFilePayload
 } from '@/lib/types';
 import { 
   getSeedPracticeDatabase, INITIAL_QUESTIONS, INITIAL_STUDENTS, 
@@ -21,6 +23,7 @@ import {
 } from '@/lib/syllabus-data';
 import { calculateExpStats } from '@/lib/exp-system';
 import confetti from 'canvas-confetti';
+
 
 const emptySubscribe = () => () => {};
 
@@ -87,7 +90,36 @@ export default function HomePage() {
   const [isAdminOpen, setIsAdminOpen] = useState<boolean>(false);
   const [isAiOpen, setIsAiOpen] = useState<boolean>(false);
   const [isExpModalOpen, setIsExpModalOpen] = useState<boolean>(false);
+  const [isAuthOpen, setIsAuthOpen] = useState<boolean>(false);
   const [targetQuestionForAi, setTargetQuestionForAi] = useState<QuestionBankItem | null>(null);
+
+  // Authentication & Multi-Device Sync State
+  const [currentUser, setCurrentUser] = useState<AuthUserSession | null>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const stored = localStorage.getItem('kinetic_jee_auth_user');
+        if (stored) return JSON.parse(stored);
+      } catch (e) {
+        console.error(e);
+      }
+    }
+    return null;
+  });
+
+  const [savedPassword, setSavedPassword] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('kinetic_jee_auth_pwd') || '';
+    }
+    return '';
+  });
+
+  const [isSyncing, setIsSyncing] = useState<boolean>(false);
+  const [lastSyncedTime, setLastSyncedTime] = useState<string | null>(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('kinetic_jee_last_synced') || null;
+    }
+    return null;
+  });
 
   // Voice Logging State
   const [isVoiceActive, setIsVoiceActive] = useState<boolean>(false);
@@ -99,6 +131,78 @@ export default function HomePage() {
     setToastMsg({ text, type });
     setTimeout(() => setToastMsg(null), 3000);
   };
+
+  // Sync current data to permanent user file on the server
+  const syncToUserFile = useCallback(async (
+    userToSync = currentUser, 
+    pwdToSync = savedPassword,
+    customRecords = records,
+    customQuestions = questions,
+    customAnnouncements = announcements
+  ) => {
+    if (!userToSync || !pwdToSync) return;
+
+    try {
+      setIsSyncing(true);
+      const res = await fetch('/api/user-data', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          username: userToSync.username,
+          password: pwdToSync,
+          records: customRecords,
+          questions: customQuestions,
+          announcements: customAnnouncements,
+          displayName: userToSync.displayName,
+          targetYear: userToSync.targetYear,
+          targetRankGoal: userToSync.targetRankGoal,
+        }),
+      });
+
+      const resData = await res.json();
+      if (res.ok) {
+        const nowIso = resData.lastUpdated || new Date().toISOString();
+        setLastSyncedTime(nowIso);
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('kinetic_jee_last_synced', nowIso);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to sync to user server file:', err);
+    } finally {
+      setIsSyncing(false);
+    }
+  }, [currentUser, savedPassword, records, questions, announcements]);
+
+  // Initial load: If credentials exist, sync latest from user file
+  useEffect(() => {
+    if (!currentUser || !savedPassword) return;
+
+    const pullFromServer = async () => {
+      try {
+        const res = await fetch(`/api/user-data?username=${encodeURIComponent(currentUser.username)}&password=${encodeURIComponent(savedPassword)}`);
+        if (res.ok) {
+          const result = await res.json();
+          if (result.data) {
+            if (result.data.records) setRecords(result.data.records);
+            if (result.data.questions) setQuestions(result.data.questions);
+            if (result.data.announcements && result.data.announcements.length > 0) {
+              setAnnouncements(result.data.announcements);
+            }
+            if (result.data.lastUpdated) {
+              setLastSyncedTime(result.data.lastUpdated);
+            }
+          }
+        }
+      } catch (err) {
+        console.error('Auto-pull error on start:', err);
+      }
+    };
+
+    pullFromServer();
+  }, [currentUser, savedPassword]);
+
+
 
   // Global Keyboard Listener for Ctrl + O (or Cmd + O) to open Admin Panel
   useEffect(() => {
@@ -113,19 +217,68 @@ export default function HomePage() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  // Save changes to localStorage
+  // Save changes to localStorage AND user server file forever
   const handleSave = useCallback(() => {
     try {
       localStorage.setItem('kinetic_jee_personal_records', JSON.stringify(records));
       localStorage.setItem('kinetic_jee_personal_questions', JSON.stringify(questions));
       localStorage.setItem('kinetic_jee_personal_ann', JSON.stringify(announcements));
       setIsSaved(true);
-      showToast('Record saved and synced to workstation storage.', 'success');
+      
+      if (currentUser && savedPassword) {
+        syncToUserFile(currentUser, savedPassword, records, questions, announcements);
+        showToast(`Saved & synced to permanent user file (@${currentUser.username}).`, 'success');
+      } else {
+        showToast('Saved to browser. Log in to sync to your permanent user file across devices!', 'info');
+      }
     } catch (e) {
       console.error('Failed to save to localStorage:', e);
       showToast('Error saving data to browser storage.', 'error');
     }
-  }, [records, questions, announcements]);
+  }, [records, questions, announcements, currentUser, savedPassword, syncToUserFile]);
+
+  // Handle Login Success
+  const handleLoginSuccess = useCallback((user: AuthUserSession, password: string, userData: UserFilePayload) => {
+    setCurrentUser(user);
+    setSavedPassword(password);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('kinetic_jee_auth_user', JSON.stringify(user));
+      localStorage.setItem('kinetic_jee_auth_pwd', password);
+    }
+
+    if (userData) {
+      if (userData.records) {
+        setRecords(userData.records);
+        localStorage.setItem('kinetic_jee_personal_records', JSON.stringify(userData.records));
+      }
+      if (userData.questions) {
+        setQuestions(userData.questions);
+        localStorage.setItem('kinetic_jee_personal_questions', JSON.stringify(userData.questions));
+      }
+      if (userData.announcements && userData.announcements.length > 0) {
+        setAnnouncements(userData.announcements);
+        localStorage.setItem('kinetic_jee_personal_ann', JSON.stringify(userData.announcements));
+      }
+      if (userData.lastUpdated) {
+        setLastSyncedTime(userData.lastUpdated);
+        localStorage.setItem('kinetic_jee_last_synced', userData.lastUpdated);
+      }
+    }
+
+    showToast(`Logged in as @${user.username}. All logs loaded from your user file!`, 'success');
+  }, []);
+
+  // Handle Logout
+  const handleLogout = useCallback(() => {
+    setCurrentUser(null);
+    setSavedPassword('');
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('kinetic_jee_auth_user');
+      localStorage.removeItem('kinetic_jee_auth_pwd');
+    }
+    showToast('Logged out. Your data is safely stored in your user file forever.', 'info');
+  }, []);
+
 
   // Update a subject in the currently inspected date
   const handleUpdateSubject = useCallback((sub: SubjectKey, data: Partial<SubjectDayData>) => {
@@ -426,11 +579,11 @@ export default function HomePage() {
 
   const personalStudentsList: StudentProfile[] = [
     {
-      id: 'stu-aditya',
-      name: 'Aditya Khari (You)',
-      rollNo: 'JEE-2026-ASPIRANT',
-      targetYear: '2026',
-      targetRankGoal: 'AIR < 500 (IIT Bombay CSE)',
+      id: currentUser ? `stu-${currentUser.username}` : 'stu-aditya',
+      name: currentUser ? `${currentUser.displayName} (You)` : 'Aditya Khari (You)',
+      rollNo: currentUser ? `JEE-${currentUser.targetYear || '2026'}-ASPIRANT` : 'JEE-2026-ASPIRANT',
+      targetYear: currentUser?.targetYear || '2026',
+      targetRankGoal: currentUser?.targetRankGoal || 'AIR < 500 (IIT Bombay CSE)',
       totalQuestions: totalQuestionsAllTime,
       streakDays: currentStreak,
       accuracyRate: 100,
@@ -439,6 +592,7 @@ export default function HomePage() {
       preferredSubject: 'phy'
     }
   ];
+
 
   if (!isMounted) {
     return <WorkstationSkeleton />;
@@ -454,6 +608,8 @@ export default function HomePage() {
         onOpenAdmin={() => setIsAdminOpen(true)}
         onOpenAi={() => { setTargetQuestionForAi(null); setIsAiOpen(true); }}
         onOpenExpBadges={() => setIsExpModalOpen(true)}
+        onOpenAuth={() => setIsAuthOpen(true)}
+        currentUser={currentUser}
         expStats={expStats}
         onToggleVoice={handleToggleVoice}
         isVoiceActive={isVoiceActive}
@@ -462,6 +618,7 @@ export default function HomePage() {
         onSave={handleSave}
         currentStreak={currentStreak}
       />
+
 
       {/* ANNOUNCEMENT TICKER IF AVAILABLE */}
       {announcements.length > 0 && (
@@ -589,6 +746,20 @@ export default function HomePage() {
         expStats={expStats}
       />
 
+      {/* MULTI-DEVICE AUTHENTICATION & CLOUD SYNC MODAL */}
+      <AuthModal
+        isOpen={isAuthOpen}
+        onClose={() => setIsAuthOpen(false)}
+        currentUser={currentUser}
+        savedPassword={savedPassword}
+        onLoginSuccess={handleLoginSuccess}
+        onLogout={handleLogout}
+        onSyncNow={() => syncToUserFile(currentUser, savedPassword, records, questions, announcements)}
+        isSyncing={isSyncing}
+        lastSyncedTime={lastSyncedTime}
+      />
+
     </div>
   );
 }
+

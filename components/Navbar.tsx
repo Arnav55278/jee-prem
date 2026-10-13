@@ -1,8 +1,9 @@
 'use client';
 
 import React from 'react';
-import { Flame, Shield, Sparkles, Mic, CheckCircle2, AlertCircle, Menu, X, BarChart3, Calendar, BookOpen, FileText, Cpu, Award } from 'lucide-react';
+import { Flame, Shield, Sparkles, Mic, CheckCircle2, AlertCircle, Menu, X, BarChart3, Calendar, BookOpen, FileText, Cpu, Award, User, LogIn, Cloud } from 'lucide-react';
 import { ExpStats } from '@/lib/exp-system';
+import { AuthUserSession } from '@/lib/types';
 
 interface NavbarProps {
   activeTab: 'workstation' | 'fire_calendar' | 'question_bank' | 'analytics' | 'reports';
@@ -10,6 +11,8 @@ interface NavbarProps {
   onOpenAdmin: () => void;
   onOpenAi: () => void;
   onOpenExpBadges: () => void;
+  onOpenAuth: () => void;
+  currentUser: AuthUserSession | null;
   expStats: ExpStats;
   onToggleVoice: () => void;
   isVoiceActive: boolean;
@@ -25,6 +28,8 @@ export default function Navbar({
   onOpenAdmin,
   onOpenAi,
   onOpenExpBadges,
+  onOpenAuth,
+  currentUser,
   expStats,
   onToggleVoice,
   isVoiceActive,
@@ -33,6 +38,7 @@ export default function Navbar({
   onSave,
   currentStreak
 }: NavbarProps) {
+
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
 
   return (
@@ -224,6 +230,33 @@ export default function Navbar({
             <span>{isSaved ? 'Saved' : 'Save'}</span>
           </button>
 
+          {/* User Account & Multi-Device Sync Button */}
+          <button
+            onClick={onOpenAuth}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all cursor-pointer ${
+              currentUser
+                ? 'bg-indigo-600/20 border-indigo-500/40 text-indigo-300 hover:bg-indigo-600/30 shadow-sm'
+                : 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white border-indigo-400/50 shadow-md shadow-indigo-600/20'
+            }`}
+            title={currentUser ? `Logged in as @${currentUser.username} (Click to manage sync & device storage)` : "Log in to sync your logs across all devices forever"}
+          >
+            {currentUser ? (
+              <>
+                <Cloud className="w-3.5 h-3.5 text-emerald-400" />
+                <span className="font-mono text-white text-[11px] truncate max-w-[90px] xl:max-w-[120px]">
+                  @{currentUser.username}
+                </span>
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              </>
+            ) : (
+              <>
+                <LogIn className="w-3.5 h-3.5" />
+                <span>Log In</span>
+              </>
+            )}
+          </button>
+
+
           {/* Mobile Menu Toggle */}
           <button
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
@@ -301,7 +334,15 @@ export default function Navbar({
               Admin Panel (4900)
             </button>
           </div>
+          <button
+            onClick={() => { onOpenAuth(); setMobileMenuOpen(false); }}
+            className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-indigo-600/30 text-indigo-300 border border-indigo-500/40 text-xs font-semibold"
+          >
+            <User className="w-3.5 h-3.5" />
+            <span>{currentUser ? `Account: @${currentUser.username} (Connected)` : 'Log In / Register (Multi-Device Sync)'}</span>
+          </button>
         </div>
+
       )}
     </header>
   );

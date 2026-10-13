@@ -70,3 +70,22 @@ export interface AnnouncementItem {
   tag: 'Exam Alert' | 'Revision Strategy' | 'High Yield';
   author: string;
 }
+
+export interface UserFilePayload {
+  username: string;
+  displayName: string;
+  records: Record<string, DayRecord>;
+  questions: QuestionBankItem[];
+  announcements?: AnnouncementItem[];
+  targetYear?: string;
+  targetRankGoal?: string;
+  lastUpdated: string;
+}
+
+export interface AuthUserSession {
+  username: string;
+  displayName: string;
+  targetYear?: string;
+  targetRankGoal?: string;
+}
+
